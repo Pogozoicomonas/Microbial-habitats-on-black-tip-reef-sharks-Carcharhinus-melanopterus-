@@ -1,1 +1,92 @@
+############################################################
+################### Diversity analyses #####################
+############################################################
 
+library(vegan)
+library(lme4)
+library(emmeans)
+library(ggplot2)
+library(GUniFrac)
+library(patchwork)
+library(indicspecies)
+library(VennDiagram)
+library(topGO)
+library(devtools)
+library(pairwiseAdonis)
+
+setwd("~")
+
+#Rarefy data to shallowest sequencing depth (5170 sequences)
+cnts=shark.matrix
+asv.rar <- Rarefy(cnts, 5170)$otu.tab.rff
+ 
+############################################################
+##################### Alpha-diversity ######################
+############################################################
+
+alpha=as.data.frame(t(estimateR(asv.rar)))
+alpha$Shannon=diversity(asv.rar, index = "shannon")
+alpha$compartment=meta$compartment[match(rownames(alpha), rownames(meta))]
+
+##################################################
+##################### Stats ######################
+##################################################
+
+#Shannon Index
+sha_model=lm(Shannon~ compartment, data = alpha)
+anova(sha_model) 
+summary(sha_model)
+
+#pairwise comparison
+sha_pairs = emmeans(sha_model, pairwise ~ compartment, weights = "proportional", adjust="none")
+rbind(sha_pairs$contrasts, adjust="fdr")
+sha_pairs_df=as.data.frame(sha_pairs[["contrasts"]])
+write.table(sha_pairs_df, "/Users/claudiapogoreutz/Documents/Claudia.work/PostDoc/_Projects/Carcharhinus.melanopterus_microbial.habitats/revision_2024/anova_shannon_pairwise.txt", sep = "\t", row.names = T, quote = F)
+
+#Chao1 Diversity Estimator
+cha_model=lm(S.chao1~ compartment, data = alpha)
+anova(cha_model) 
+summary(cha_model)
+
+#pairwise comparison
+chao_pairs = emmeans(cha_model, pairwise ~ compartment, weights = "proportional", adjust="none")
+rbind(cha_pairs$contrasts, adjust="fdr")
+cha_pairs_df=as.data.frame(cha_pairs[["contrasts"]])
+write.table(sha_pairs_df, "/Users/claudiapogoreutz/Documents/Claudia.work/PostDoc/_Projects/Carcharhinus.melanopterus_microbial.habitats/revision_2024/anova_chao1_pairwise.txt", sep = "\t", row.names = T, quote = F)
+
+## QC models
+res_sha <- resid(sha_model)
+plot(fitted(sha_model), res_sha)
+qqnorm(res_sha)
+qqline(res_sha) 
+plot(density(res_sha))
+
+res_cha <- resid(cha_model)
+plot(fitted(cha_model), res_cha)
+qqnorm(res_cha)
+qqline(res_cha) 
+plot(density(res_cha))
+
+
+# boxplots
+
+shan=ggplot(alpha, aes(x=compartment, y=Shannon, fill=compartment)) + 
+  stat_boxplot(geom = "errorbar")  + 
+  geom_boxplot(alpha = 1) +  
+  scale_fill_manual(values=c("#FF928B","#B9C0DA", "#645617", "#B79D2A", "#2589BD"))  + 
+  theme_bw() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) + 
+  labs( y= "Shannon diversity", x="")  
+
+cha1=ggplot(alpha, aes(x=compartment, y=S.chao1, fill=compartment)) + 
+  stat_boxplot(geom = "errorbar")  + 
+  geom_boxplot(alpha = 1) +  
+  scale_fill_manual(values=c("#FF928B","#B9C0DA", "#645617", "#B79D2A", "#2589BD"))  + 
+  theme_bw() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) + 
+  labs( y= "Chao1 estimated richness", x="") 
+
+baseplot <- ggplot(data=alpha, aes(x=alpha$compartment, y=Shannon, color=compartment)) +
+  geom_boxplot(alpha = 1) +  
+  scale_fill_manual(values=c("#FF928B","#B9C0DA", "#645617", "#B79D2A", "#2589BD"))  + 
+  theme_bw() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) + 
+  labs( y= "Chao1 estimated richness", x="") 
+print(baseplot+geom_point())
