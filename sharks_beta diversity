@@ -1,0 +1,115 @@
+############################################################
+################### Diversity analyses #####################
+############################################################
+
+library(vegan)
+library(lme4)
+library(emmeans)
+library(ggplot2)
+library(GUniFrac)
+library(patchwork)
+library(indicspecies)
+library(VennDiagram)
+library(topGO)
+library(devtools)
+library(pairwiseAdonis)
+
+setwd("~")
+
+################################
+#########Beta Diversity#########
+################################
+
+#####################################################
+##Stats on community composition: seawater included##
+#####################################################
+ 
+#sqrt transformation of community data
+shark.mat<-sqrt(shark.matrix) 
+View(shark.mat)
+ASV_stats<-ASV_stats
+
+#calculate ecological resemblance
+shark.dist<-vegdist(shark.matrix, method='bray')
+View(shark.dist)
+
+ASV_stats2<-sqrt(ASV_stats[,3:9815])
+
+#overall model
+shark_Adonis=adonis(formula = shark.dist ~ habitat*site, data = SW, permutations = 999,      method = "bray") 
+
+#pairwise comparisons
+shark_PWAdonis=pairwise.adonis(shark.dist, ASV_stats$habitat, sim.method = "bray", p.adjust.m = "fdr", perm = 999) 
+write.table(shark_PWAdonis, "/Users/claudiapogoreutz/Documents/Claudia.work/PostDoc/_Projects/Carcharhinus.melanopterus_microbial.habitats/revision_2024/shark_PWAdonis_beta.txt", sep = "\t", row.names = T, quote = F) 
+
+#betadisper
+dispersion<-betadisper(shark.dist, group=ASV_stats$habitat)
+anova(dispersion)
+permutest(dispersion, permutations = 999, pairwise = TRUE)
+TukeyHSD(dispersion)
+
+#####################################################
+##Stats on community composition: seawater excluded##
+#####################################################
+
+#sqrt transformation of relative abundance community data table
+ASV_stats_noSW<-ASV_stats_noSW
+shark.mat2<-sqrt(ASV_stats_noSW[,3:9815]) 
+View(shark.mat2)
+
+#calculate ecological resemblance
+shark.dist2<-vegdist(shark.mat2, method='bray')
+
+#dispersion
+dispersion<-betadisper(shark.dist2, group=ASV_stats_noSW$habitat)
+anova(dispersion)
+permutest(dispersion, permutations = 999, pairwise = TRUE)
+TukeyHSD(dispersion)
+
+#overall model
+shark_Adonis=adonis(formula = shark.dist ~ habitat, data = shark.mat2, permutations = 999,      method = "bray") 
+shark_adonis=adonis(ASV_stats_noSW[,3:9815]~ ASV_stats_noSW$habitat , method = "bray" )
+write.table(shark_PWAdonis, "/Users/claudiapogoreutz/Documents/Claudia.work/PostDoc/_Projects/Carcharhinus.melanopterus_microbial.habitats/revision_2024/shark_adonis_beta.txt", sep = "\t", row.names = T, quote = F) 
+
+#pairwise comparisons
+shark_PWAdonis=pairwise.adonis(shark.dist2, ASV_stats_noSW, sim.method = "bray", p.adjust.m = "fdr", perm = 999) 
+write.table(shark_PWAdonis, "/Users/claudiapogoreutz/Documents/Claudia.work/PostDoc/_Projects/Carcharhinus.melanopterus_microbial.habitats/revision_2024/shark_PWAdonis_beta.txt", sep = "\t", row.names = T, quote = F) 
+
+#dispersion
+dispersion<-betadisper(shark.dist2, group=ASV_stats_noSW$habitat)
+anova(dispersion)
+permutest(dispersion, permutations = 999, pairwise = TRUE)
+TukeyHSD(dispersion)
+
+#####################################################
+#########nMDS on relative abundance data ############
+#####################################################
+
+#nMDS  
+sharksMDS1<-metaMDS(asv.rar, distance="bray", k=2, trymax=35, autotransform=TRUE) ##k is the number of dimensions
+sharksMDS1 
+
+stressplot(sharksMDS1)
+
+#pull points from MDS
+View(sharksMDS1)
+
+#grab first two principal axes
+NMDS1 <- sharksMDS1$points[,1]  
+NMDS2 <- sharksMDS1$points[,2]
+length(NMDS1)
+length(NMDS2)
+
+shark.nMDS<-cbind(shark.matrix3, NMDS1, NMDS2)
+
+#plot ordination
+p3<-ggplot(shark.plot3, aes(NMDS5, NMDS6, color=habitat))+
+  geom_point(position=position_jitter(.1), shape=1)+  
+  stat_ellipse(type='t',size =1)+  
+  theme_minimal()
+p3
+
+#dispersion plot with centroids
+disp_cent<-betadisper(shark.dist, group=ASV_SW$habitat, type = "centroid")
+plot(dispersion, hull=TRUE, ellipse=FALSE, label.cex = 0.5)
+
