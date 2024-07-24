@@ -1,3 +1,7 @@
+########################################
+###functional inference with PICRUSt2###
+########################################
+
 #check summary of biom.table
 biom summarize-table -i table.biom
 
