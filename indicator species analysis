@@ -1,0 +1,21 @@
+library(indicspecies)
+
+######################################
+######Indicator species analysis######
+######################################
+
+#create data frame with abundance info
+#create vector with my relevant information (to group counts by)
+#NOTE: habitat = microenvironment on shark
+
+habitat<-sharks$habitat
+View(habitat)
+class(habitat)
+inv = multipatt(shark.matrix, habitat, func = "r.g", control = how(nperm=9999))
+summary(inv)
+inv
+
+#save indicspec multipatt output locally
+capture.output(summary(my.output.of.desire))
+out <- capture.output(summary(inv))
+write.csv2(out, "/Users/claudiapogoreutz/Documents/Claudia.work/PostDoc/_Projects/Carcharhinus melanopterus_microbial habitats/shark2_stats/shark.s.csv")
